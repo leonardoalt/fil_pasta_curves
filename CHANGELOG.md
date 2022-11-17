@@ -7,6 +7,30 @@ and this project adheres to Rust's notion of
 
 ## [Unreleased]
 
+## [0.4.1] - 2022-10-13
+### Added
+- `uninline-portable` feature flag, which disables inlining of some functions.
+  This is useful for tiny microchips (such as ARM Cortex-M0), where inlining
+  can hurt performance and blow up binary size.
+
+## [0.4.0] - 2022-05-05
+### Changed
+- MSRV is now 1.56.0.
+- Migrated to `ff 0.12`, `group 0.12`.
+
+## [0.3.1] - 2022-04-20
+### Added
+- `gpu` feature flag, which exposes implementations of the `GpuField` trait from
+  the `ec-gpu` crate for `pasta_curves::{Fp, Fq}`. This flag will eventually
+  control all GPU functionality.
+- `repr-c` feature flag, which helps to facilitate usage of this crate's types
+  across FFI by conditionally adding `repr(C)` attribute to point structures.
+- `pasta_curves::arithmetic::Coordinates::from_xy`
+
+### Changed
+- `pasta_curves::{Fp, Fq}` are now declared as `repr(transparent)`, to enable
+  their use across FFI. They remain opaque structs in Rust code.
+
 ## [0.3.0] - 2022-01-03
 ### Added
 - Support for `no-std` builds, via two new (default-enabled) feature flags:
