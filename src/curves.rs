@@ -18,11 +18,13 @@ use group::{
 use rand::RngCore;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
+#[cfg(feature = "alloc")]
+use ff::WithSmallOrderMulGroup;
+
 use super::{Fp, Fq};
-use crate::arithmetic::Group;
 
 #[cfg(feature = "alloc")]
-use crate::arithmetic::{Coordinates, CurveAffine, CurveExt, FieldExt};
+use crate::arithmetic::{Coordinates, CurveAffine, CurveExt};
 
 macro_rules! new_curve_impl {
     (($($privacy:tt)*), $name:ident, $name_affine:ident, $iso:ident, $base:ident, $scalar:ident,
@@ -92,9 +94,9 @@ macro_rules! new_curve_impl {
 
             fn identity() -> Self {
                 Self {
-                    x: $base::zero(),
-                    y: $base::zero(),
-                    z: $base::zero(),
+                    x: $base::ZERO,
+                    y: $base::ZERO,
+                    z: $base::ZERO,
                 }
             }
 
@@ -171,7 +173,7 @@ macro_rules! new_curve_impl {
             fn batch_normalize(p: &[Self], q: &mut [Self::AffineRepr]) {
                 assert_eq!(p.len(), q.len());
 
-                let mut acc = $base::one();
+                let mut acc = $base::ONE;
                 for (p, q) in p.iter().zip(q.iter_mut()) {
                     // We use the `x` field of $name_affine to store the product
                     // of previous z-coordinates seen.
@@ -206,7 +208,7 @@ macro_rules! new_curve_impl {
             }
 
             fn to_affine(&self) -> Self::AffineRepr {
-                let zinv = self.z.invert().unwrap_or($base::zero());
+                let zinv = self.z.invert().unwrap_or($base::ZERO);
                 let zinv2 = zinv.square();
                 let x = self.x * zinv2;
                 let zinv3 = zinv2 * zinv;
@@ -616,8 +618,8 @@ macro_rules! new_curve_impl {
 
             fn identity() -> Self {
                 Self {
-                    x: $base::zero(),
-                    y: $base::zero(),
+                    x: $base::ZERO,
+                    y: $base::ZERO,
                 }
             }
 
@@ -629,7 +631,7 @@ macro_rules! new_curve_impl {
                 $name {
                     x: self.x,
                     y: self.y,
-                    z: $base::conditional_select(&$base::one(), &$base::zero(), self.is_identity()),
+                    z: $base::conditional_select(&$base::ONE, &$base::ZERO, self.is_identity()),
                 }
             }
         }
@@ -783,23 +785,6 @@ macro_rules! new_curve_impl {
         impl_binops_multiplicative!($name, $scalar);
         impl_binops_multiplicative_mixed!($name_affine, $scalar, $name);
 
-        impl Group for $name {
-            type Scalar = $scalar;
-
-            fn group_zero() -> Self {
-                Self::identity()
-            }
-            fn group_add(&mut self, rhs: &Self) {
-                *self += *rhs;
-            }
-            fn group_sub(&mut self, rhs: &Self) {
-                *self -= *rhs;
-            }
-            fn group_scale(&mut self, by: &Self::Scalar) {
-                *self *= *by;
-            }
-        }
-
         #[cfg(feature = "gpu")]
         impl ec_gpu::GpuName for $name_affine {
             fn name() -> alloc::string::String {
@@ -814,13 +799,13 @@ macro_rules! impl_projective_curve_specific {
         fn generator() -> Self {
             // NOTE: This is specific to b = 5
 
-            const NEGATIVE_ONE: $base = $base::neg(&$base::one());
+            const NEGATIVE_ONE: $base = $base::neg(&$base::ONE);
             const TWO: $base = $base::from_raw([2, 0, 0, 0]);
 
             Self {
                 x: NEGATIVE_ONE,
                 y: TWO,
-                z: $base::one(),
+                z: $base::ONE,
             }
         }
 
@@ -897,7 +882,7 @@ macro_rules! impl_projective_curve_ext {
             use super::hashtocurve;
 
             Box::new(move |message| {
-                let mut us = [Field::zero(); 2];
+                let mut us = [Field::ZERO; 2];
                 hashtocurve::hash_to_field($name::CURVE_ID, domain_prefix, message, &mut us);
                 let q0 = hashtocurve::map_to_curve_simple_swu::<$base, $name, $iso>(
                     &us[0],
